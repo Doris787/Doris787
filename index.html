@@ -1091,9 +1091,16 @@ function render(docs){board.querySelectorAll(".note").forEach(n=>n.remove());$("
     board.appendChild(el)});
   seen=new Set(docs.map(d=>d.id));$("#noteNo").textContent=String(docs.length+1).padStart(3,"0")}
 let localMode=false;
+/* shared board: paste the Supabase project URL and publishable (anon) key here */
+const SUPA={url:"",key:""};
+const supa=(path,opt={})=>fetch(SUPA.url+"/rest/v1/"+path,{...opt,headers:{apikey:SUPA.key,Authorization:"Bearer "+SUPA.key,"Content-Type":"application/json",...(opt.headers||{})}}).then(r=>{if(!r.ok)throw new Error(r.status);return r.status===204?null:r.json()});
+const supaLoad=()=>supa("notes?select=*&order=id.asc&limit=300").then(rows=>{$("#boardMsg").textContent="";render(rows.map(r=>({id:"s"+r.id,data:r})))});
 async function initNotes(){if(notesStarted)return;notesStarted=true;$("#boardMsg").textContent="Loading notes…";
   const t=setTimeout(()=>{$("#boardMsg").textContent="The board can't load right now. Try again later."},10000);
   try{db=window.claude?await window.claude.use("db"):null}catch(e){db=null}
+  if(!db&&SUPA.url){me="shared";$("#compose").hidden=false;
+    supaLoad().then(()=>clearTimeout(t)).catch(()=>{clearTimeout(t);$("#boardMsg").textContent="The board can't load right now. Try again later."});
+    setInterval(()=>{if(location.hash==="#notes"&&!document.hidden)supaLoad().catch(()=>{})},20000);return}
   if(!db){clearTimeout(t);localMode=true;me="local";$("#compose").hidden=false;$("#boardMsg").textContent="";
     let L=[];try{L=JSON.parse(localStorage.getItem("doris-notes")||"[]")}catch(e){}render(L);return}
   let user=null;try{user=await window.claude.use("user")}catch(e){}
@@ -1104,6 +1111,9 @@ async function initNotes(){if(notesStarted)return;notesStarted=true;$("#boardMsg
 }
 $("#compose").addEventListener("submit",async e=>{e.preventDefault();const text=$("#noteText").value.trim();
   if(!text){$("#noteErr").textContent="Write a line first";return}
+  if(me==="shared"){$("#noteStatus").textContent="Pinning…";
+    try{await supa("notes",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify({text:text.slice(0,5000),name:$("#noteName").value.trim().slice(0,24),color,x:Math.round(3+Math.random()*66),y:Math.round(4+Math.random()*52),r:Math.round(Math.random()*12-6)})});
+      $("#noteStatus").textContent="Pinned ✦ Your note is on the board.";$("#noteText").value="";await supaLoad()}catch(err){$("#noteStatus").textContent="That didn't stick. Try again."}return}
   if(localMode){let L=[];try{L=JSON.parse(localStorage.getItem("doris-notes")||"[]")}catch(e){}
     L.push({id:"n"+Date.now(),data:{text:text.slice(0,5000),name:$("#noteName").value.trim().slice(0,24),color,x:Math.round(3+Math.random()*66),y:Math.round(4+Math.random()*52),r:Math.round(Math.random()*12-6),at:Date.now()}});
     try{localStorage.setItem("doris-notes",JSON.stringify(L))}catch(e){}render(L);$("#noteStatus").textContent="Pinned ✦ Your note is on the board.";$("#noteText").value="";return}
