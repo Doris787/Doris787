@@ -479,6 +479,12 @@ section[data-view="works"]{position:relative}
 .note p{margin:0;font-family:"Courier Prime","Courier New",monospace;font-size:clamp(11px,1.1vw,14px);line-height:1.35;word-break:break-word;overflow:hidden;flex:1}
 .note cite{display:block;font-style:normal;font-size:11px;opacity:.7;margin-top:4px}
 .note .del{position:absolute;top:2px;right:4px;border:0;background:none;font-size:15px;opacity:.5}
+.note.long p{mask-image:linear-gradient(#000 70%,transparent);-webkit-mask-image:linear-gradient(#000 70%,transparent)}
+.note.long::after{content:"tap to read ↗";position:absolute;right:8px;bottom:6px;font-size:10px;opacity:.6}
+.note.long{cursor:pointer}.note.long cite{margin-bottom:11px}
+.note.open{position:fixed!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%) rotate(-1deg)!important;width:min(460px,88vw);aspect-ratio:auto;max-height:80vh;z-index:80;padding:30px 24px 20px;box-shadow:0 30px 80px rgba(20,20,40,.45),0 0 0 100vmax rgba(20,22,40,.35);animation:none}
+.note.open p{mask-image:none;-webkit-mask-image:none;overflow:auto;font-size:15px;line-height:1.55}
+.note.open::after{content:"tap to close";}
 .note.new{animation:pinup .9s cubic-bezier(.25,1.3,.5,1)}
 @keyframes pinup{from{transform:translateY(60vh) scale(.5) rotate(-12deg);opacity:.2}}
 .empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#F7EBDD;text-align:center;padding:20px}
@@ -486,7 +492,7 @@ section[data-view="works"]{position:relative}
 .paper{position:relative;z-index:3;width:min(540px,94%);margin-top:clamp(-110px,-9vw,-60px);background:#FBF8F1;color:#2A2A33;padding:14px 18px 14px;box-shadow:0 -6px 22px rgba(30,20,10,.2),0 10px 20px rgba(30,20,10,.12);
   font-family:"Courier Prime","Courier New",monospace;background-image:repeating-linear-gradient(transparent 0 27px,rgba(42,42,51,.08) 27px 28px)}
 .paper-top{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.12em;opacity:.7;margin-bottom:6px}
-.paper textarea{width:100%;min-height:78px;border:0;background:transparent;font:inherit;font-size:16px;line-height:28px;color:#2A2A33;resize:none;outline:none}
+.paper textarea{width:100%;min-height:112px;field-sizing:content;max-height:50vh;border:0;background:transparent;font:inherit;font-size:16px;line-height:28px;color:#2A2A33;resize:none;outline:none}
 .paper-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .paper input{flex:1 1 140px;min-width:0;border:0;border-bottom:1px dashed rgba(42,42,51,.3);background:transparent;font:inherit;font-size:14px;color:#2A2A33;padding:4px 2px;outline:none}
 .sws{display:flex;gap:6px}
@@ -658,7 +664,7 @@ section[data-view="works"]{position:relative}
     <div class="cork" id="board"><div class="empty" id="empty"><b>The board is empty</b><span>Be the first to pin a note.</span></div></div>
     <form class="paper" id="compose" hidden>
       <div class="paper-top"><span>NOTE No. <span id="noteNo">001</span></span><span>DORIS'S BOARD</span></div>
-      <textarea id="noteText" maxlength="120" placeholder="Write something here…" aria-label="Your note"></textarea>
+      <textarea id="noteText" placeholder="Write something here…" aria-label="Your note"></textarea>
       <div class="paper-row">
         <input id="noteName" maxlength="24" placeholder="— your name (optional)" aria-label="Your name">
         <div class="sws">
@@ -1072,13 +1078,16 @@ document.querySelectorAll(".sw").forEach(s=>s.onclick=()=>{document.querySelecto
 $("#noteText").addEventListener("input",()=>$("#noteErr").textContent="");
 const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let notesStarted=false,db=null,me=null,isOwner=false,seen=new Set();
+document.addEventListener("click",()=>document.querySelectorAll(".note.open").forEach(x=>x.classList.remove("open")));
 function render(docs){board.querySelectorAll(".note").forEach(n=>n.remove());$("#empty").hidden=docs.length>0;
   docs.forEach(d=>{const n=d.data||{};const el=document.createElement("div");el.className="note"+(seen.size&&!seen.has(d.id)?" new":"");
     const col=["n1","n2","n3","n4"].includes(n.color)?n.color:"n1";el.style.background=`var(--${col})`;
     el.style.left=Math.max(2,Math.min(70,+n.x||10))+"%";el.style.top=Math.max(3,Math.min(62,+n.y||10))+"%";el.style.transform=`rotate(${Math.max(-8,Math.min(8,+n.r||0))}deg)`;
     const face=typeof n.face==="string"&&n.face.startsWith("data:image/png")?`<img src="${n.face}" alt="">`:"";
+    if(String(n.text||"").length>60)el.classList.add("long");
     el.innerHTML=`${face}<p>${esc(n.text)}</p><cite>— ${esc(n.name)||"a visitor"}</cite>${isOwner?'<button class="del" aria-label="Remove note">×</button>':''}`;
     if(isOwner)el.querySelector(".del").onclick=()=>db.doc("notes/"+d.id).delete().catch(()=>{});
+    el.addEventListener("click",e=>{if(e.target.closest(".del")||!el.classList.contains("long"))return;e.stopPropagation();const o=el.classList.contains("open");board.querySelectorAll(".note.open").forEach(x=>x.classList.remove("open"));if(!o)el.classList.add("open")});
     board.appendChild(el)});
   seen=new Set(docs.map(d=>d.id));$("#noteNo").textContent=String(docs.length+1).padStart(3,"0")}
 let localMode=false;
@@ -1096,10 +1105,10 @@ async function initNotes(){if(notesStarted)return;notesStarted=true;$("#boardMsg
 $("#compose").addEventListener("submit",async e=>{e.preventDefault();const text=$("#noteText").value.trim();
   if(!text){$("#noteErr").textContent="Write a line first";return}
   if(localMode){let L=[];try{L=JSON.parse(localStorage.getItem("doris-notes")||"[]")}catch(e){}
-    L.push({id:"n"+Date.now(),data:{text:text.slice(0,120),name:$("#noteName").value.trim().slice(0,24),color,x:Math.round(3+Math.random()*66),y:Math.round(4+Math.random()*52),r:Math.round(Math.random()*12-6),at:Date.now()}});
+    L.push({id:"n"+Date.now(),data:{text:text.slice(0,5000),name:$("#noteName").value.trim().slice(0,24),color,x:Math.round(3+Math.random()*66),y:Math.round(4+Math.random()*52),r:Math.round(Math.random()*12-6),at:Date.now()}});
     try{localStorage.setItem("doris-notes",JSON.stringify(L))}catch(e){}render(L);$("#noteStatus").textContent="Pinned ✦ Your note is on the board.";$("#noteText").value="";return}
   if(!db||!me)return;$("#noteStatus").textContent="Pinning…";
-  try{await db.doc("notes/"+me).set({text:text.slice(0,120),name:$("#noteName").value.trim().slice(0,24),color,x:Math.round(3+Math.random()*66),y:Math.round(4+Math.random()*52),r:Math.round(Math.random()*12-6),at:Date.now()});
+  try{await db.doc("notes/"+me).set({text:text.slice(0,5000),name:$("#noteName").value.trim().slice(0,24),color,x:Math.round(3+Math.random()*66),y:Math.round(4+Math.random()*52),r:Math.round(Math.random()*12-6),at:Date.now()});
     $("#noteStatus").textContent="Pinned ✦ Your note is on the board.";$("#noteText").value=""}
   catch(err){$("#noteStatus").textContent=err&&err.code==="not_granted"||err&&err.code==="permission_denied"?"You can view this board but can't pin notes.":"That didn't stick. Try again."}});
 
