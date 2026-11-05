@@ -481,7 +481,7 @@ section[data-view="works"]{position:relative}
 .note .del{position:absolute;top:2px;right:4px;border:0;background:none;font-size:15px;opacity:.5}
 .note.long p{mask-image:linear-gradient(#000 70%,transparent);-webkit-mask-image:linear-gradient(#000 70%,transparent)}
 .note.long::after{content:"tap to read ↗";position:absolute;right:8px;bottom:6px;font-size:10px;opacity:.6}
-.note.long{cursor:pointer}.note.long cite{margin-bottom:11px}
+.note{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}.note.drag{cursor:grabbing;transition:none;transform:rotate(0) scale(1.06)!important;box-shadow:0 18px 30px rgba(40,20,5,.35)}.note.long{cursor:grab}.note.long cite{margin-bottom:11px}
 .note.open{position:fixed!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%) rotate(-1deg)!important;width:min(460px,88vw);aspect-ratio:auto;max-height:80vh;z-index:80;padding:30px 24px 20px;box-shadow:0 30px 80px rgba(20,20,40,.45),0 0 0 100vmax rgba(20,22,40,.35);animation:none}
 .note.open p{mask-image:none;-webkit-mask-image:none;overflow:auto;font-size:15px;line-height:1.55}
 .note.open::after{content:"tap to close";}
@@ -1079,6 +1079,7 @@ $("#noteText").addEventListener("input",()=>$("#noteErr").textContent="");
 const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let notesStarted=false,db=null,me=null,isOwner=false,seen=new Set();
 document.addEventListener("click",()=>document.querySelectorAll(".note.open").forEach(x=>x.classList.remove("open")));
+let zTop=10;
 function render(docs){board.querySelectorAll(".note").forEach(n=>n.remove());$("#empty").hidden=docs.length>0;
   docs.forEach(d=>{const n=d.data||{};const el=document.createElement("div");el.className="note"+(seen.size&&!seen.has(d.id)?" new":"");
     const col=["n1","n2","n3","n4"].includes(n.color)?n.color:"n1";el.style.background=`var(--${col})`;
@@ -1087,7 +1088,12 @@ function render(docs){board.querySelectorAll(".note").forEach(n=>n.remove());$("
     if(String(n.text||"").length>60)el.classList.add("long");
     el.innerHTML=`${face}<p>${esc(n.text)}</p><cite>— ${esc(n.name)||"a visitor"}</cite>${isOwner?'<button class="del" aria-label="Remove note">×</button>':''}`;
     if(isOwner)el.querySelector(".del").onclick=()=>db.doc("notes/"+d.id).delete().catch(()=>{});
-    el.addEventListener("click",e=>{if(e.target.closest(".del")||!el.classList.contains("long"))return;e.stopPropagation();const o=el.classList.contains("open");board.querySelectorAll(".note.open").forEach(x=>x.classList.remove("open"));if(!o)el.classList.add("open")});
+    el.addEventListener("click",e=>{if(e.target.closest(".del")||el._dragged){el._dragged=false;return}e.stopPropagation();const o=el.classList.contains("open");board.querySelectorAll(".note.open").forEach(x=>x.classList.remove("open"));if(!o)el.classList.add("open")});
+    el.addEventListener("pointerdown",e=>{if(el.classList.contains("open")||e.target.closest(".del"))return;const B=board.getBoundingClientRect(),sx=e.clientX,sy=e.clientY,ox=el.offsetLeft,oy=el.offsetTop;let moved=false;
+      const mv=ev=>{const dx=ev.clientX-sx,dy=ev.clientY-sy;if(!moved&&Math.hypot(dx,dy)<6)return;if(!moved){moved=true;el.classList.add("drag");el.style.zIndex=++zTop}
+        el.style.left=Math.max(0,Math.min(B.width-el.offsetWidth,ox+dx))+"px";el.style.top=Math.max(0,Math.min(B.height-el.offsetHeight,oy+dy))+"px"};
+      const up=()=>{removeEventListener("pointermove",mv);removeEventListener("pointerup",up);removeEventListener("pointercancel",up);el.classList.remove("drag");if(moved)el._dragged=true};
+      addEventListener("pointermove",mv);addEventListener("pointerup",up);addEventListener("pointercancel",up)});
     board.appendChild(el)});
   seen=new Set(docs.map(d=>d.id));$("#noteNo").textContent=String(docs.length+1).padStart(3,"0")}
 let localMode=false;
