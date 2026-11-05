@@ -1092,8 +1092,8 @@ function render(docs){board.querySelectorAll(".note").forEach(n=>n.remove());$("
   seen=new Set(docs.map(d=>d.id));$("#noteNo").textContent=String(docs.length+1).padStart(3,"0")}
 let localMode=false;
 /* shared board: paste the Supabase project URL and publishable (anon) key here */
-const SUPA={url:"",key:""};
-const supa=(path,opt={})=>fetch(SUPA.url+"/rest/v1/"+path,{...opt,headers:{apikey:SUPA.key,Authorization:"Bearer "+SUPA.key,"Content-Type":"application/json",...(opt.headers||{})}}).then(r=>{if(!r.ok)throw new Error(r.status);return r.status===204?null:r.json()});
+const SUPA={url:"https://vrzbqcivmoaorqfzqrcy.supabase.co",key:"sb_publishable_Qw2d4nN4C-3zp4q7PzYrkQ_yGHbHsFf"};
+const supa=(path,opt={})=>fetch(SUPA.url+"/rest/v1/"+path,{...opt,headers:{apikey:SUPA.key,"Content-Type":"application/json",...(opt.headers||{})}}).then(async r=>{if(!r.ok)throw new Error(r.status);const t=await r.text();return t?JSON.parse(t):null});
 const supaLoad=()=>supa("notes?select=*&order=id.asc&limit=300").then(rows=>{$("#boardMsg").textContent="";render(rows.map(r=>({id:"s"+r.id,data:r})))});
 async function initNotes(){if(notesStarted)return;notesStarted=true;$("#boardMsg").textContent="Loading notes…";
   const t=setTimeout(()=>{$("#boardMsg").textContent="The board can't load right now. Try again later."},10000);
