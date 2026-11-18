@@ -1,0 +1,15 @@
+# Free Supabase projects pause after a week without activity.
+# This pings the guestbook database every 3 days so the board stays awake.
+name: Keep guestbook awake
+on:
+  schedule:
+    - cron: "17 9 */3 * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read one note from the board
+        run: |
+          curl -fsS "https://vrzbqcivmoaorqfzqrcy.supabase.co/rest/v1/notes?select=id&limit=1" \
+            -H "apikey: sb_publishable_Qw2d4nN4C-3zp4q7PzYrkQ_yGHbHsFf"
